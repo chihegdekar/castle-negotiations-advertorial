@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Advertorial Editor</title>
+<style>
+  :root{
+    --bg:#1C222C; --bar:#0F1B2D; --ink:#F2EBDC; --ink-soft:#B9B2A0;
+    --gold:#C9A96A; --gold-deep:#A8874B; --rule:rgba(242,235,220,0.14);
+    --marker:#FFFF00; --red:#FF0000;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  body{display:flex;flex-direction:column;background:var(--bg);}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{
+    background:var(--bar);
+    border-bottom:1px solid var(--rule);
+    padding:0.55rem 0.75rem;
+    display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;
+    flex:0 0 auto;
+  }
+  .toolbar .group{display:flex;gap:0.25rem;align-items:center;padding:0 0.5rem;border-right:1px solid var(--rule);}
+  .toolbar .group:last-of-type{border-right:none;}
+  button{
+    font-family:inherit;font-size:0.85rem;font-weight:600;
+    background:transparent;color:var(--ink);
+    border:1px solid var(--rule);border-radius:4px;
+    padding:0.4rem 0.65rem;cursor:pointer;
+    display:flex;align-items:center;gap:0.35rem;white-space:nowrap;
+  }
+  button:hover{background:rgba(242,235,220,0.08);}
+  button.active{background:var(--gold);color:var(--bar);border-color:var(--gold-deep);}
+  button.primary{background:var(--gold);color:var(--bar);border-color:var(--gold-deep);}
+  button.primary:hover{background:#D8BC80;}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button b{font-family:Georgia,serif;}
+  button i{font-family:Georgia,serif;}
+  .status{
+    margin-left:auto;font-size:0.78rem;color:var(--ink-soft);
+    display:flex;align-items:center;gap:0.5rem;white-space:nowrap;
+  }
+  .status .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-soft);}
+  .status.dirty .dot{background:var(--gold);}
+  .status.saved .dot{background:#7EB88A;}
+  input[type=file]{display:none;}
+
+  /* ---------- canvas ---------- */
+  .canvas-wrap{flex:1 1 auto;min-height:0;background:#3a3f47;overflow:auto;}
+  iframe{width:100%;height:100%;border:0;background:#fff;display:block;}
+  .empty{
+    height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--ink-soft);gap:0.75rem;text-align:center;padding:2rem;
+  }
+  .empty h1{font-size:1.1rem;color:var(--ink);font-weight:600;margin:0;}
+  .empty p{max-width:32rem;font-size:0.9rem;line-height:1.5;margin:0;}
+
+  .hint{
+    font-size:0.72rem;color:var(--ink-soft);padding:0.3rem 0.75rem;
+    background:var(--bar);border-top:1px solid var(--rule);flex:0 0 auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="group">
+    <button id="btnOpen">📂 Open HTML…</button>
+    <input type="file" id="fileInput" accept=".html,.htm,text/html">
+  </div>
+
+  <div class="group">
+    <button id="btnBold" data-cmd="bold" title="Bold (⌘B)"><b>B</b></button>
+    <button id="btnItalic" data-cmd="italic" title="Italic (⌘I)"><i>I</i></button>
+    <button id="btnUnderline" data-cmd="underline" title="Underline (⌘U)"><u>U</u></button>
+    <button id="btnHighlight" title="Highlight selection">🖍 Highlight</button>
+    <button id="btnRed" title="Make selection red / bold red">🔴 Red</button>
+    <button id="btnClear" title="Clear formatting on selection">⌫ Clear format</button>
+  </div>
+
+  <div class="group">
+    <button id="btnP" title="Paragraph">¶ Text</button>
+    <button id="btnH2" title="Heading">H2</button>
+    <button id="btnUl" title="Bulleted list">• List</button>
+    <button id="btnLink" title="Insert / edit link">🔗 Link</button>
+  </div>
+
+  <div class="group" disabled id="undoGroup">
+    <button id="btnUndo" title="Undo (⌘Z)">↺ Undo</button>
+    <button id="btnRedo" title="Redo (⌘⇧Z)">↻ Redo</button>
+  </div>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">No file open</span></div>
+  <button class="primary" id="btnSave" disabled>💾 Save</button>
+</div>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <div class="empty" id="emptyState">
+    <h1>Nothing open yet</h1>
+    <p>Click <b>“Open HTML…”</b> and pick your <code>index.html</code>. It'll load exactly as it renders on the page —
+    click into any text and start typing, select text and use the toolbar (or ⌘B / ⌘I / ⌘U) to format it, then hit
+    <b>Save</b> to write your changes straight back to the file.</p>
+  </div>
+</div>
+
+<div class="hint" id="hintBar" style="display:none">
+  Editing live — click text to place your cursor, drag to select. <b>Highlight</b> and <b>Red</b> apply the site's own
+  marker/figure styling. Changes aren't written to disk until you click <b>Save</b>.
+</div>
+
+<script>
+(function(){
+  const fileInput   = document.getElementById('fileInput');
+  const btnOpen     = document.getElementById('btnOpen');
+  const btnSave     = document.getElementById('btnSave');
+  const canvasWrap  = document.getElementById('canvasWrap');
+  const emptyState  = document.getElementById('emptyState');
+  const hintBar      = document.getElementById('hintBar');
+  const statusEl    = document.getElementById('status');
+  const statusText  = document.getElementById('statusText');
+
+  let iframe = null;
+  let fileHandle = null;   // File System Access API handle, if available
+  let fileName = 'index.html';
+  let dirty = false;
+
+  const canUseFSAccess = 'showOpenFilePicker' in window;
+
+  function setStatus(text, state){
+    statusText.textContent = text;
+    statusEl.className = 'status' + (state ? ' ' + state : '');
+  }
+
+  function markDirty(){
+    dirty = true;
+    setStatus(fileName + ' — unsaved changes', 'dirty');
+    btnSave.disabled = false;
+  }
+
+  function markSaved(){
+    dirty = false;
+    setStatus(fileName + ' — saved', 'saved');
+  }
+
+  async function openFile(){
+    if (canUseFSAccess) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }]
+        });
+        fileHandle = handle;
+        const file = await handle.getFile();
+        fileName = file.name;
+        loadContent(await file.text());
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err);
+      }
+    } else {
+      fileInput.click();
+    }
+  }
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileHandle = null;
+    fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => loadContent(e.target.result);
+    reader.readAsText(file);
+  });
+
+  function loadContent(html){
+    emptyState.style.display = 'none';
+    hintBar.style.display = 'block';
+    if (iframe) iframe.remove();
+    iframe = document.createElement('iframe');
+    canvasWrap.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Give every element a shot at contentEditable via designMode, keep the
+    // page's own CSS/layout exactly as-is.
+    doc.designMode = 'on';
+
+    // Track edits.
+    doc.addEventListener('input', markDirty);
+    doc.addEventListener('keyup', refreshToolbarState);
+    doc.addEventListener('mouseup', refreshToolbarState);
+    iframe.contentWindow.addEventListener('focus', refreshToolbarState);
+
+    setStatus(fileName + (canUseFSAccess && fileHandle ? ' — ready' : ' — loaded (Save will download a copy)'), null);
+    btnSave.disabled = false;
+    dirty = false;
+  }
+
+  function exec(cmd, val){
+    if (!iframe) return;
+    iframe.contentWindow.focus();
+    iframe.contentDocument.execCommand(cmd, false, val || null);
+    markDirty();
+    refreshToolbarState();
+  }
+
+  // ---- formatting buttons ----
+  document.querySelectorAll('button[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => exec(btn.dataset.cmd));
+  });
+
+  document.getElementById('btnHighlight').addEventListener('click', () => {
+    // Wrap selection in the site's own .hl marker span so it matches
+    // exactly, falling back to a plain background if that's not possible.
+    wrapSelection('span', 'hl');
+  });
+
+  document.getElementById('btnRed').addEventListener('click', () => {
+    wrapSelection('span', 'fig');
+  });
+
+  document.getElementById('btnClear').addEventListener('click', () => exec('removeFormat'));
+  document.getElementById('btnUndo').addEventListener('click', () => exec('undo'));
+  document.getElementById('btnRedo').addEventListener('click', () => exec('redo'));
+  document.getElementById('btnP').addEventListener('click', () => exec('formatBlock', 'P'));
+  document.getElementById('btnH2').addEventListener('click', () => exec('formatBlock', 'H2'));
+  document.getElementById('btnUl').addEventListener('click', () => exec('insertUnorderedList'));
+  document.getElementById('btnLink').addEventListener('click', () => {
+    const url = prompt('Link URL:', 'https://');
+    if (url) exec('createLink', url);
+  });
+
+  function wrapSelection(tag, className){
+    if (!iframe) return;
+    const win = iframe.contentWindow;
+    const doc = iframe.contentDocument;
+    win.focus();
+    const sel = win.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      alert('Select some text first.');
+      return;
+    }
+    const range = sel.getRangeAt(0);
+
+    // If the selection is already fully wrapped in this exact class, unwrap it.
+    const ancestor = range.commonAncestorContainer;
+    const existing = (ancestor.nodeType === 1 ? ancestor : ancestor.parentElement)?.closest('.' + className);
+    if (existing && existing.textContent === sel.toString()) {
+      const parent = existing.parentNode;
+      while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+      parent.removeChild(existing);
+      markDirty();
+      return;
+    }
+
+    const wrapper = doc.createElement(tag);
+    wrapper.className = className;
+    try {
+      range.surroundContents(wrapper);
+    } catch (e) {
+      // Selection spans multiple elements — fall back to extract+wrap.
+      wrapper.appendChild(range.extractContents());
+      range.insertNode(wrapper);
+    }
+    sel.removeAllRanges();
+    markDirty();
+  }
+
+  function refreshToolbarState(){
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    try {
+      document.getElementById('btnBold').classList.toggle('active', doc.queryCommandState('bold'));
+      document.getElementById('btnItalic').classList.toggle('active', doc.queryCommandState('italic'));
+      document.getElementById('btnUnderline').classList.toggle('active', doc.queryCommandState('underline'));
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---- save ----
+  async function saveFile(){
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    const html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+
+    if (canUseFSAccess && fileHandle) {
+      try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(html);
+        await writable.close();
+        markSaved();
+        return;
+      } catch (err) {
+        console.error(err);
+        alert('Could not save directly — downloading a copy instead.');
+      }
+    }
+    // Fallback: trigger a download.
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName || 'index.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    markSaved();
+  }
+
+  btnOpen.addEventListener('click', openFile);
+  btnSave.addEventListener('click', saveFile);
+
+  document.addEventListener('keydown', e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveFile(); }
+  });
+
+  window.addEventListener('beforeunload', e => {
+    if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+})();
+</script>
+</body>
+</html>
