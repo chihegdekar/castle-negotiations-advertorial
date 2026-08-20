@@ -51,8 +51,9 @@ PY
 }
 
 echo "▸ fetching stock"
-for id in 4468754 12893568 7054942 7593780 5981905 5452675 \
-          6100413 5778854 8170593 7552528 8135380 8135159 8460998 7693470; do
+for id in 4468754 12893568 7054942 7593780 5981905 \
+          6100413 5778854 8170593 7552528 8135380 8135159 8460998 7693470 \
+          8512946 9057678; do
   fetch_pexels "$id"
 done
 
@@ -117,20 +118,33 @@ cut45 "../Pre-brief animation.mp4" 0.3 3.2 0.50 0.22 s7a-hippo.mp4
 # crop below the handwriting — the notes carry it, the words would fight the labels
 cut45 "$PX/5981905.mp4"   1.0 5.5 0.50 1.00 s7b-drivers.mp4 1.45
 cut45 "$VI/download.mp4"  0.0 5.0 0.50 0.50 s7c-knight.mp4
-cut45 "$F"                0.5 5.5 0.50 0.45 s10c-cohort.mp4
+# "But here's the catch" — what you're actually booking, and the calendar
+# that caps it. The laptop screen sits right of frame, hence xf=0.80; the
+# source is flat so it gets a contrast lift.
+cut45 "$PX/8512946.mp4"   1.0 5.0 0.80 0.45 s10a-call.mp4 1 "eq=contrast=1.14:saturation=1.08,"
+# shot from across the table, so the month reads upside down — rotate 180
+# and the hands come in from the bottom like they're your own
+cut45 "$PX/9057678.mp4"   1.0 5.5 0.50 0.50 s10b-slots.mp4 1 "hflip,vflip,"
 # path 1: procurement getting leaned on by two people at once
 cut45 "$PX/7552528.mp4"   3.0 5.0 0.50 0.42 s12a-path1.mp4
 cut45 "$D"                1.5 5.0 0.50 0.40 s12b-path2.mp4
-# push past the wall map behind him — it's a Minsk street plan and it reads odd
-cut45 "$PX/5452675.mp4"   2.0 5.5 0.50 0.92 s13a-late.mp4 1.5
 cut45 "$B"                7.6 5.0 0.50 0.45 s13b-signed.mp4
 cut169 "$PX/8170593.mp4"  1.5 5.5 0.50 0.45 s11-guarantee.mp4
 
-# Castle's own room footage. Deliberately taken from 5s in: earlier the camera
-# pans across the trainer and holds on her face, which we don't want. From 5s
-# it's on the cohort — which is the point of the shot anyway.
-cutbox "$VI/Screen Recording 2026-08-14 at 00.28.47.mov" 5.0 2.4  0 190 944 1180 s10a-room.mp4
-cutbox "$VI/Screen Recording 2026-08-14 at 00.28.27.mov" 0.3 3.8  120 380 700 875 s10b-desk.mp4
+# Castle's own Blame Wheel, sitting in the BEFORE cell of the final
+# comparison — the copy beside it is "your procurement team has taken the
+# blame long enough". Chi's crop is 942x1220 (0.772); the cell is 4:5, so pad
+# the sides out to 976 rather than crop. There's only 20px of clearance under
+# the Spin button and cropping would eat it.
+# 140px of headroom on top so the BEFORE badge never clips the title. It has
+# to clear the badge at 390px too, where the badge stops shrinking (its font
+# hits the clamp floor) while the cell keeps getting smaller — so the gap is
+# sized for mobile, not desktop. Side padding keeps the result at exactly 4:5
+# so it matches the AFTER cell and the grid row stays even.
+echo "  ▪ s13a-wheel.mp4"
+ffmpeg -v error -y -i "$OUT/Procurement Blame Wheel (1).mov" \
+  -vf "pad=1088:1360:73:140:color=white,scale=720:900:flags=lanczos,setsar=1,fps=30" \
+  "${ENC[@]}" "$OUT/s13a-wheel.mp4"
 
 # ---- the alternating before/after montage --------------------
 # Eight 0.55s segments, hard cuts, no transitions. Grayscale is burned

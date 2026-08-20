@@ -61,9 +61,9 @@ The one thing that *is* timing-critical: the montage badge reads `requestVideoFr
 ## Before it goes live
 
 1. **Swap the CTA links.** Find/replace `#book` with the real booking URL.
-2. **The study screenshot.** One slot is deliberately left empty — the wide frame under "The Defensibility Trap strikes." Drop your screenshot in with the conclusion highlighted in `#FFFF00`, plain and unframed. It's the strongest trust moment on the reference page.
-3. **Headshot.** The byline `.avatar` currently holds `Chi & Ruth.png`.
-4. **Legal.** Terms / Privacy / Contact links are stubs. The business disclaimer is a first draft written to mirror the reference's health disclaimer — get it checked.
+2. **Headshot.** The byline `.avatar` currently holds `Chi & Ruth.png`.
+3. **Legal.** Terms / Privacy / Contact links are stubs. The business disclaimer is a first draft written to mirror the reference's health disclaimer — get it checked.
+4. **Don't upload `media/Procurement Blame Wheel.mov`.** It's the 11MB source for `s3c-wheel.mp4` and is kept in the repo so the original isn't lost. The server only needs the built `.mp4`.
 
 ## Notes
 
